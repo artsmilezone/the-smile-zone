@@ -18,6 +18,101 @@ export type BlogPost = {
 
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: 'baseball-mental-toughness-pressure',
+    title: 'Why Most Baseball Players Struggle Under Pressure (And How to Fix It)',
+    excerpt:
+      "Even elite hitters fail nearly 70% of the time. Pressure is constant in baseball — and most players handle it with the wrong tools. Here's what the research shows, and how to train the mental game that actually controls performance.",
+    author: 'Jay Jackson',
+    authorRole: 'Founder & Lead Coach',
+    authorColor: '#3B9FE0',
+    authorInitials: 'JJ',
+    date: '2026-04-08',
+    category: 'Mental Mindset',
+    type: 'original',
+    readTime: '6 min read',
+    featured: false,
+    content: `
+<p>Baseball is one of the most mentally demanding sports in the world.</p>
+
+<p>Even elite hitters fail nearly 70% of the time, and pitchers are constantly navigating high-stakes situations with little margin for error. This creates a unique psychological environment where pressure is constant, not occasional.</p>
+
+<p>Research in sport and exercise psychology has consistently documented that performance anxiety can significantly impair decision-making, reaction time, and focus — especially in high-pressure competitive environments.</p>
+
+<p>In baseball, that's every pitch.</p>
+
+<h2>Why Players Actually Struggle Under Pressure</h2>
+
+<p>Most players think pressure problems are mechanical. They're not. They're mental.</p>
+
+<h3>The Real Breakdown</h3>
+
+<ol>
+  <li>One mistake leads to an emotional reaction</li>
+  <li>Emotional reaction causes loss of focus</li>
+  <li>Loss of focus creates compounding mistakes</li>
+</ol>
+
+<p>Sport psychology research consistently shows that cognitive overload under stress reduces performance efficiency. In simple terms: the brain gets in the way of the body.</p>
+
+<h2>The 'Spiral Effect' Every Player Experiences</h2>
+
+<p>You've seen it:</p>
+
+<ul>
+  <li>Pitcher walks one batter, gives up a hit — suddenly the inning unravels</li>
+  <li>Hitter strikes out, starts pressing — goes 0-for-15</li>
+</ul>
+
+<p>This is known as a <strong>performance spiral</strong>, where negative thoughts create a feedback loop that worsens performance. Athletes who lack mental reset strategies are significantly more likely to experience prolonged performance slumps — a finding well-documented in applied sport psychology literature.</p>
+
+<h2>The Fix: Mental Reset Systems</h2>
+
+<p>Elite players don't avoid pressure. They train for it.</p>
+
+<h3>The 3-Step Mental Reset System</h3>
+
+<ol>
+  <li>
+    <strong>Awareness</strong> — Recognize the moment:<br />
+    <em>"I'm speeding up"</em> &nbsp;|&nbsp; <em>"I'm frustrated"</em>
+  </li>
+  <li>
+    <strong>Interrupt</strong> — Use a reset trigger:<br />
+    Deep breath &nbsp;|&nbsp; Step off the mound &nbsp;|&nbsp; Adjust batting gloves
+  </li>
+  <li>
+    <strong>Refocus</strong> — Return to a single cue:<br />
+    <em>"One pitch"</em> &nbsp;|&nbsp; <em>"Stay through it"</em> &nbsp;|&nbsp; <em>"Execute"</em>
+  </li>
+</ol>
+
+<p>This approach aligns with performance psychology models emphasizing cue-based refocusing techniques to restore attention and control under competitive pressure.</p>
+
+<h2>What MLB Players Do Differently</h2>
+
+<p>At the highest level, the difference isn't talent. It's control.</p>
+
+<p>Players train emotional discipline, routine consistency, and thought awareness. That's why mental skills coaching is now a core part of development programs across professional organizations.</p>
+
+<h2>How to Start Training Your Mental Game</h2>
+
+<ul>
+  <li>Build a pre-performance routine</li>
+  <li>Develop reset triggers</li>
+  <li>Train your focus daily — not just in games</li>
+</ul>
+
+<h2>Sources</h2>
+
+<ul>
+  <li>American Psychological Association — <a href="https://apadivisions.org/division-47" target="_blank" rel="noopener noreferrer">Division 47: Society for Sport, Exercise &amp; Performance Psychology</a></li>
+  <li>Association for Applied Sport Psychology — <a href="https://appliedsportpsych.org" target="_blank" rel="noopener noreferrer">appliedsportpsych.org</a></li>
+  <li>Weinberg, R.S., &amp; Gould, D. (2023). <em>Foundations of Sport and Exercise Psychology</em> (8th ed.). Human Kinetics.</li>
+  <li>Journal of Applied Sport Psychology — <a href="https://www.tandfonline.com" target="_blank" rel="noopener noreferrer">Taylor &amp; Francis</a></li>
+</ul>
+    `,
+  },
+  {
     slug: 'one-pitch-focus',
     title: 'The One-Pitch Focus: Why Presence Is Your Most Powerful Tool',
     excerpt:
