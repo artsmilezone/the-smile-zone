@@ -28,7 +28,7 @@ export const BLOG_POSTS: BlogPost[] = [
     authorRole: 'Founder & Lead Coach',
     authorColor: '#3B9FE0',
     authorInitials: 'JJ',
-    date: '2026-04-08',
+    date: '2026-04-17',
     category: 'Mental Mindset',
     type: 'original',
     readTime: '6 min read',
