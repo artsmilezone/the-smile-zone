@@ -14,6 +14,8 @@ export type BlogPost = {
   content?: string // HTML — original posts only
   readTime: string
   featured?: boolean
+  metaTitle?: string
+  metaDescription?: string
 }
 
 export const BLOG_POSTS: BlogPost[] = [
@@ -31,6 +33,8 @@ export const BLOG_POSTS: BlogPost[] = [
     type: 'original',
     readTime: '6 min read',
     featured: false,
+    metaTitle: 'Baseball Mental Toughness: Why Players Struggle Under Pressure',
+    metaDescription: 'Learn why baseball players struggle under pressure and how to build elite mental toughness using proven strategies and routines.',
     content: `
 <p>Baseball is one of the most mentally demanding sports in the world.</p>
 
