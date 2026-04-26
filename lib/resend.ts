@@ -1,7 +1,9 @@
 import { Resend } from 'resend'
 import { generateRadarSvg } from './radar-chart-svg'
+import { parseIfString } from './assessment-handler'
 import fs from 'fs'
 import path from 'path'
+import type { QaReviewItem, QuestionOption } from '@/types'
 
 function getLogoDataUri(): string {
   try {
@@ -165,11 +167,12 @@ export async function sendEmail(
   subScores: Record<string, number> = {},
   phaseScores: Record<string, number> = {},
   ageGroup: string = '',
+  qaReview: QaReviewItem[] = [],
 ): Promise<void> {
   const client = getClient()
   const subject = `Your SMILE Zone Baseball Assessment — ${archetype}`
   const logoDataUri = getLogoDataUri()
-  const html = buildEmailHtml(firstName, reportHtml, archetype, mmScore, biqScore, subScores, phaseScores, logoDataUri, ageGroup)
+  const html = buildEmailHtml(firstName, reportHtml, archetype, mmScore, biqScore, subScores, phaseScores, logoDataUri, ageGroup, qaReview)
 
   const { error } = await client.emails.send({
     from:    FROM,
@@ -182,6 +185,127 @@ export async function sendEmail(
   if (error) {
     throw new Error(`Resend error: ${error.message}`)
   }
+}
+
+function resolveAnswerText(answer: string | string[], options: QuestionOption[] | null): string {
+  const escapeHtml = (text: string) =>
+    String(text).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+  // If no options available, return raw answer with escaping
+  if (!options || options.length === 0) {
+    return Array.isArray(answer)
+      ? answer.map(a => escapeHtml(String(a))).join(', ')
+      : escapeHtml(String(answer))
+  }
+
+  if (Array.isArray(answer)) {
+    // Multi-select: resolve each label to full option text
+    const resolved = answer
+      .map((a) => {
+        const answerStr = String(a).trim()
+        // First try exact label match
+        let found = options.find((o) => o.label === answerStr)
+
+        // If no match and answer is a single letter, it might be the label
+        if (!found && answerStr.length === 1) {
+          found = options.find((o) => o.label.toUpperCase() === answerStr.toUpperCase())
+        }
+
+        // If still no match, try matching against text content
+        if (!found) {
+          found = options.find((o) => o.text.toLowerCase() === answerStr.toLowerCase())
+        }
+
+        return escapeHtml(found?.text || answerStr)
+      })
+      .filter(r => r.length > 0) // Remove empty strings
+
+    return resolved.join(', ')
+  }
+
+  // Single choice: resolve label to full option text
+  const answerStr = String(answer).trim()
+  let found = options.find((o) => o.label === answerStr)
+
+  if (!found && answerStr.length === 1) {
+    found = options.find((o) => o.label.toUpperCase() === answerStr.toUpperCase())
+  }
+
+  if (!found) {
+    found = options.find((o) => o.text.toLowerCase() === answerStr.toLowerCase())
+  }
+
+  return escapeHtml(found?.text || answerStr)
+}
+
+function buildQaReviewHtml(qaReview: QaReviewItem[]): string {
+  if (qaReview.length === 0) return ''
+
+  const items = qaReview.map((item, idx) => {
+    const qNum = idx + 1
+
+    const userAnswerParsed = parseIfString(item.user_answer as string | string[] | null)
+    const userAnswerText = userAnswerParsed === null ? '' : resolveAnswerText(userAnswerParsed, item.options)
+    const correctAnswerText =
+      item.correct_answer === null
+        ? null
+        : resolveAnswerText(parseIfString(item.correct_answer) as string | string[], item.options)
+
+    if (item.question_type === 'written') {
+      return `<div style="border:1px solid #e0e4ef;border-radius:8px;padding:16px;margin-bottom:12px;">
+  <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#1a1a2e;">Q${qNum}. ${item.question_text}</p>
+  <div style="display:flex;align-items:flex-start;gap:8px;">
+    <span style="color:#3B9FE0;font-weight:700;">✎</span>
+    <div>
+      <span style="color:#3B9FE0;font-weight:700;">Open-ended response</span>
+      <p style="margin:4px 0 0;color:#555;font-size:13px;font-style:italic;">"${userAnswerText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}"</p>
+    </div>
+  </div>
+</div>`
+    }
+
+    if (item.is_correct === true) {
+      return `<div style="border:1px solid #e0e4ef;border-radius:8px;padding:16px;margin-bottom:12px;">
+  <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#1a1a2e;">Q${qNum}. ${item.question_text}</p>
+  <div style="display:flex;align-items:flex-start;gap:8px;">
+    <span style="color:#10b981;font-weight:700;">✓</span>
+    <div>
+      <span style="color:#10b981;font-weight:700;">Correct!</span>
+      <span style="color:#555;font-size:13px;margin-left:8px;">${userAnswerText}</span>
+    </div>
+  </div>
+</div>`
+    }
+
+    if (item.is_correct === false) {
+      return `<div style="border:1px solid #e0e4ef;border-radius:8px;padding:16px;margin-bottom:12px;">
+  <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#1a1a2e;">Q${qNum}. ${item.question_text}</p>
+  <div style="margin-bottom:8px;">
+    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:4px;">
+      <span style="color:#ef4444;font-weight:700;">✗</span>
+      <div>
+        <span style="color:#ef4444;font-weight:700;">Your answer:</span>
+        <span style="color:#555;font-size:13px;margin-left:4px;">${userAnswerText}</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:8px;padding-left:20px;">
+      <span style="color:#10b981;font-weight:700;">✓</span>
+      <div>
+        <span style="color:#10b981;font-weight:700;">Correct answer:</span>
+        <span style="color:#555;font-size:13px;margin-left:4px;">${correctAnswerText}</span>
+      </div>
+    </div>
+  </div>
+</div>`
+    }
+
+    return ''
+  })
+
+  return `<div style="margin-top:32px;">
+  <h3 style="color:#1a1a2e;font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #1a1a2e;padding-bottom:8px;margin:0 0 16px;">Your Answers</h3>
+  ${items.join('')}
+</div>`
 }
 
 function scoreRingCell(score: number, color: string, trackColor: string, label: string): string {
@@ -213,6 +337,7 @@ function buildEmailHtml(
   phaseScores: Record<string, number> = {},
   logoDataUri: string = '',
   ageGroup: string = '',
+  qaReview: QaReviewItem[] = [],
 ): string {
   // Use 4-dimension phase scores for chart if available, else fall back to sub_scores
   const chartData = Object.keys(phaseScores).length >= 3 ? phaseScores : subScores
@@ -278,6 +403,7 @@ function buildEmailHtml(
 
     <div class="body">
       ${reportHtml}
+      ${buildQaReviewHtml(qaReview)}
     </div>
 
     <!-- Join CTA -->

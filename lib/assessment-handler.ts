@@ -5,7 +5,7 @@ import { appendIntakeRow, appendAssessmentRow } from './google-sheets'
 import { sanitizeReportHtml } from './sanitize'
 import { promptGradeAndReport } from './prompts/grade-and-report'
 import { CURRICULUM_PHASES } from './question-handler'
-import type { AgeGroup, Question, Answer, SubmitResult } from '@/types'
+import type { AgeGroup, Question, Answer, SubmitResult, QaReviewItem } from '@/types'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -92,6 +92,9 @@ export async function submitAssessment(data: SubmitInput): Promise<SubmitResult>
   // 5. Build Q&A pairs for Claude context
   const qaPairs = buildQaPairs(questions, answers)
 
+  // 5a. Build Q&A review for email
+  const qaReview = buildQaReview(questions, answers)
+
   // 6. Call Claude for written-answer grading + HTML report generation
   let claudeResult: ClaudeReportResult
   try {
@@ -150,7 +153,7 @@ export async function submitAssessment(data: SubmitInput): Promise<SubmitResult>
   // 10. Send results email via Resend + log assessment row to Google Sheets
   let emailNote = ''
   try {
-    await sendEmail(firstName, email, reportHtmlSafe, archetype, mmFinal, biqFinal, subScores, phaseScores, ageGroup)
+    await sendEmail(firstName, email, reportHtmlSafe, archetype, mmFinal, biqFinal, subScores, phaseScores, ageGroup, qaReview)
     // PATCH email_sent = true
     if (assessmentId) {
       const { error: patchError } = await supabase
@@ -210,9 +213,11 @@ function gradeObjective(
         correct !== null &&
         String(answer ?? '').trim().toLowerCase() === String(correct).trim().toLowerCase()
     } else if (qType === 'multi_select') {
-      if (Array.isArray(correct) && Array.isArray(answer)) {
-        const ansSorted = [...answer].map((v) => String(v).toUpperCase()).sort()
-        const correctSorted = [...correct].map((v) => String(v).toUpperCase()).sort()
+      const parsedCorrect = parseIfString(correct as string | string[] | null)
+      const parsedAnswer  = parseIfString((answer ?? null) as string | string[] | null)
+      if (Array.isArray(parsedCorrect) && Array.isArray(parsedAnswer)) {
+        const ansSorted = [...parsedAnswer].map((v) => String(v).toUpperCase()).sort()
+        const correctSorted = [...parsedCorrect].map((v) => String(v).toUpperCase()).sort()
         isCorrect = JSON.stringify(ansSorted) === JSON.stringify(correctSorted)
       }
     }
@@ -269,21 +274,85 @@ async function generateReport(
   qaPairs: { question: Question; answer: Answer }[],
   untestedAreas: string[],
 ): Promise<ClaudeReportResult> {
-  const prompts = promptGradeAndReport(
-    { first_name: firstName, age_group: ageGroup },
-    scores,
-    archetype,
-    qaPairs,
-    untestedAreas,
-  )
-  const raw = await claudeMessageWithRetry(prompts.system, prompts.user, 4096)
-  const decoded = parseJsonResponse(raw) as unknown as Record<string, unknown>
+  const MAX_RETRIES = 2
+  let lastError: Error | null = null
 
-  if (!decoded.report_html || typeof decoded.report_html !== 'string') {
-    throw new Error('Report HTML missing in Claude response.')
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const prompts = promptGradeAndReport(
+        { first_name: firstName, age_group: ageGroup },
+        scores,
+        archetype,
+        qaPairs,
+        untestedAreas,
+      )
+
+      // Increase token limit on retry to give Claude more room
+      const maxTokens = attempt === 1 ? 4096 : 5120
+      const raw = await claudeMessageWithRetry(prompts.system, prompts.user, maxTokens)
+      const decoded = parseJsonResponse(raw) as unknown as Record<string, unknown>
+
+      if (!decoded.report_html || typeof decoded.report_html !== 'string') {
+        throw new Error('Report HTML missing in Claude response.')
+      }
+
+      const reportHtml = decoded.report_html as string
+
+      // Validate that all required sections are present
+      const requiredMarkers = [
+        { section: 'Greeting', marker: 'Hey' },
+        { section: 'Your Archetype', marker: 'Archetype' },
+        { section: 'Your Strengths', marker: 'Strengths' },
+        { section: 'Your Next Level', marker: 'Next Level' },
+      ]
+
+      const missingRequired: string[] = []
+      for (const { section, marker } of requiredMarkers) {
+        if (!reportHtml.includes(marker)) {
+          missingRequired.push(section)
+        }
+      }
+
+      // Check conditional sections (warn but don't fail)
+      const isAdult = ageGroup === '18plus'
+      const hasUntestedAreas = untestedAreas.length > 0
+
+      if (isAdult && !reportHtml.includes('Coaching')) {
+        console.warn('SMILEZONE [assessment] Report missing Coaching Notes (required for 18+)')
+      }
+
+      if (hasUntestedAreas && !reportHtml.includes("What's Ahead")) {
+        console.warn('SMILEZONE [assessment] Report missing What\'s Ahead (expected for untested areas)')
+      }
+
+      // Report is too short to be complete
+      if (reportHtml.length < 1500) {
+        console.warn('SMILEZONE [assessment] Report appears incomplete (under 1500 chars)')
+      }
+
+      if (missingRequired.length > 0) {
+        throw new Error(`Report missing required sections: ${missingRequired.join(', ')}`)
+      }
+
+      // Validation passed — return result
+      return decoded as unknown as ClaudeReportResult
+    } catch (err) {
+      lastError = err as Error
+      console.warn(
+        `SMILEZONE [assessment] Report generation attempt ${attempt} failed: ${lastError.message}${
+          attempt < MAX_RETRIES ? ' — retrying...' : ''
+        }`,
+      )
+
+      if (attempt < MAX_RETRIES) {
+        // Brief delay before retry to avoid throttling
+        await new Promise((resolve) => setTimeout(resolve, 500))
+      }
+    }
   }
 
-  return decoded as unknown as ClaudeReportResult
+  // All retries exhausted
+  throw lastError || new Error('Failed to generate complete report after all retries.')
 }
 
 function fallbackReport(
@@ -318,6 +387,18 @@ function fallbackReport(
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+export function parseIfString(value: string | string[] | null): string | string[] | null {
+  if (typeof value === 'string' && value.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(value)
+      return Array.isArray(parsed) ? parsed : value
+    } catch {
+      return value
+    }
+  }
+  return value
+}
+
 async function fetchQuestionsByIds(ids: string[]): Promise<Question[]> {
   const { data, error } = await supabase
     .from('questions')
@@ -326,7 +407,11 @@ async function fetchQuestionsByIds(ids: string[]): Promise<Question[]> {
 
   if (error) throw new Error(error.message)
   if (!data || data.length === 0) throw new Error('Questions not found for provided IDs.')
-  return data as Question[]
+
+  const idMap = new Map((data as Question[]).map((q) => [q.id, q]))
+  return ids
+    .map((id) => idMap.get(id))
+    .filter((q): q is Question => q !== undefined)
 }
 
 function sanitizeQuestionIds(raw: unknown): string[] {
@@ -358,4 +443,48 @@ function buildQaPairs(
     question: q,
     answer:   answers[q.id] ?? '',
   }))
+}
+
+function buildQaReview(
+  questions: Question[],
+  answers: Record<string, Answer>,
+): QaReviewItem[] {
+  return questions.map((q) => {
+    const answer = answers[q.id] ?? ''
+    if (q.question_type === 'written') {
+      return {
+        question_text: q.question_text,
+        question_type: q.question_type,
+        options: q.options,
+        user_answer: answer,
+        correct_answer: null,
+        is_correct: null,
+      }
+    }
+
+    let isCorrect = false
+    const correct = q.correct_answer
+    if (q.question_type === 'multiple_choice' || q.question_type === 'fill_blank') {
+      isCorrect =
+        correct !== null &&
+        String(answer).trim().toLowerCase() === String(correct).trim().toLowerCase()
+    } else if (q.question_type === 'multi_select') {
+      const parsedCorrect = parseIfString(correct as string | string[] | null)
+      const parsedAnswer  = parseIfString((answer ?? null) as string | string[] | null)
+      if (Array.isArray(parsedCorrect) && Array.isArray(parsedAnswer)) {
+        const ansSorted = [...parsedAnswer].map((v) => String(v).toUpperCase()).sort()
+        const correctSorted = [...parsedCorrect].map((v) => String(v).toUpperCase()).sort()
+        isCorrect = JSON.stringify(ansSorted) === JSON.stringify(correctSorted)
+      }
+    }
+
+    return {
+      question_text: q.question_text,
+      question_type: q.question_type,
+      options: q.options,
+      user_answer: answer,
+      correct_answer: correct,
+      is_correct: isCorrect,
+    }
+  })
 }
