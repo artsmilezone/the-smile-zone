@@ -20,6 +20,95 @@ export type BlogPost = {
 
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: 'pre-game-routine-elite-players',
+    title: 'The Pre-Game Routine Every Elite Player Uses (That No One Talks About)',
+    excerpt:
+      "Most players prepare physically. Very few prepare mentally, and that's the gap. Here's the 5-step pre-game routine elite baseball players use to lock in before every game.",
+    author: 'Jay Jackson',
+    authorRole: 'Founder & Lead Coach',
+    authorColor: '#3B9FE0',
+    authorInitials: 'JJ',
+    date: '2026-05-04',
+    category: 'Mental Mindset',
+    type: 'original',
+    readTime: '5 min read',
+    featured: false,
+    metaTitle: 'Best Baseball Pre-Game Routine for Peak Performance',
+    metaDescription: 'Discover the mental and physical pre-game routine elite baseball players use to perform under pressure.',
+    content: `
+<p>Most players prepare physically. Very few prepare mentally. And that's the gap.</p>
+
+<p>Sport and conditioning research demonstrates that while physical warm-ups improve physical readiness, mental preparation is equally critical for consistent performance under pressure.</p>
+
+<h2>What Elite Players Do Before the Game</h2>
+
+<p>They don't just warm up. They lock in mentally.</p>
+
+<h3>The 5-Step Elite Pre-Game Routine</h3>
+
+<h3>1. Visualization (5&ndash;10 Minutes)</h3>
+
+<p>Athletes mentally rehearse success scenarios, game situations, and execution under pressure. Research shows that mental imagery activates similar neural pathways as actual physical performance &mdash; a principle widely applied in elite sport psychology.</p>
+
+<h3>2. Breath Control</h3>
+
+<p>Used to regulate heart rate, anxiety, and focus. A common method:</p>
+
+<ul>
+  <li>Inhale for 4 seconds</li>
+  <li>Hold for 2 seconds</li>
+  <li>Exhale for 6 seconds</li>
+</ul>
+
+<h3>3. Intent Setting</h3>
+
+<p>Top players define what they're focusing on that day. Examples:</p>
+
+<ul>
+  <li><em>"Attack early in counts"</em></li>
+  <li><em>"Stay relaxed through the zone"</em></li>
+</ul>
+
+<h3>4. Cue Words</h3>
+
+<p>Short phrases to stay locked in:</p>
+
+<ul>
+  <li><em>"Smooth"</em></li>
+  <li><em>"Explode"</em></li>
+  <li><em>"Stay through it"</em></li>
+</ul>
+
+<h3>5. Routine Consistency</h3>
+
+<p>The key isn't the routine itself. It's repeating it. Consistency builds confidence.</p>
+
+<h2>Why This Works</h2>
+
+<p>Applied sport psychology research shows that structured pre-performance routines reduce anxiety, improve attentional focus, and increase performance consistency. This is why every elite athlete builds and maintains one.</p>
+
+<h2>How to Build Your Own Routine</h2>
+
+<p>Start simple:</p>
+
+<ul>
+  <li>2-minute visualization</li>
+  <li>3 deep breaths</li>
+  <li>1 clear intention</li>
+</ul>
+
+<p>Then repeat it every game.</p>
+
+<h2>Sources</h2>
+
+<ul>
+  <li>Association for Applied Sport Psychology &mdash; <a href="https://appliedsportpsych.org" target="_blank" rel="noopener noreferrer">Pre-Performance Routines Research (appliedsportpsych.org)</a></li>
+  <li>National Strength and Conditioning Association &mdash; <a href="https://www.nsca.com" target="_blank" rel="noopener noreferrer">nsca.com</a></li>
+  <li>Moran, A., &amp; Toner, J. (2017). <em>A Critical Introduction to Sport Psychology</em> (3rd ed.). Routledge.</li>
+</ul>
+    `,
+  },
+  {
     slug: 'baseball-mental-toughness-pressure',
     title: 'Why Most Baseball Players Struggle Under Pressure (And How to Fix It)',
     excerpt:
