@@ -1,10 +1,11 @@
 import { NextRequest } from 'next/server'
 import { supabase } from './supabase'
 
-const LIMITS: Record<string, number> = {
-  submit: 50,
-  get_questions: 10,
+const LIMITS: Record<string, { max: number; windowMs: number }> = {
+  submit: { max: 10, windowMs: 10 * 60 * 1000 },
 }
+
+const DEFAULT_LIMIT = { max: 10, windowMs: 10 * 60 * 1000 }
 
 async function hashIp(ip: string): Promise<string> {
   const encoder = new TextEncoder()
@@ -32,24 +33,23 @@ export async function checkRateLimit(
   request: NextRequest,
   action: string,
 ): Promise<boolean> {
-  const maxPerDay = LIMITS[action] ?? 10
+  const { max, windowMs } = LIMITS[action] ?? DEFAULT_LIMIT
   const ip = extractIp(request)
   const ipHash = await hashIp(ip)
 
-  // Count attempts in last 24 hours
   const { count, error: countError } = await supabase
     .from('rate_limits')
     .select('*', { count: 'exact', head: true })
     .eq('ip_hash', ipHash)
     .eq('action', action)
-    .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+    .gte('created_at', new Date(Date.now() - windowMs).toISOString())
 
   if (countError) {
     console.error('SMILEZONE [rate_limit] count error — failing closed:', countError.message)
     return false
   }
 
-  if ((count ?? 0) >= maxPerDay) {
+  if ((count ?? 0) >= max) {
     console.warn(`SMILEZONE [rate_limit] Blocked: action=${action} ip_hash=${ipHash.slice(0, 8)}… count=${count}`)
     return false
   }

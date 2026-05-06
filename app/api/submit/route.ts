@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
   const allowed = await checkRateLimit(request, 'submit')
   if (!allowed) {
     return NextResponse.json(
-      { error: 'Rate limit exceeded. You may submit up to 50 assessments per 24 hours.' },
-      { status: 429 },
+      { error: 'Too many submissions in a short window. Please wait a few minutes and try again.' },
+      { status: 429, headers: { 'Retry-After': '600' } },
     )
   }
 

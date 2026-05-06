@@ -156,11 +156,18 @@ export default function Assessment() {
 
     try {
       const res = await fetch(`/api/questions?age_group=${state.ageGroup}`)
+      if (!res.ok) {
+        throw new Error(
+          "We couldn't load your assessment right now. Please refresh and try again, or email info@the-smile-zone.com if it keeps happening.",
+        )
+      }
       const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Failed to load questions.')
       dispatch({ type: 'SET_QUESTIONS', questions: json.questions })
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unable to load assessment. Please try again.'
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "We couldn't load your assessment right now. Please refresh and try again, or email info@the-smile-zone.com if it keeps happening."
       setError(msg)
       dispatch({ type: 'SET_PHASE', phase: 'AGE_SELECTED' })
     }
@@ -208,11 +215,18 @@ export default function Assessment() {
       setLoadingMsg('Loading your questions…')
       try {
         const res = await fetch(`/api/questions?age_group=${state.ageGroup}`)
+        if (!res.ok) {
+          throw new Error(
+            "We couldn't load your assessment right now. Please refresh and try again, or email info@the-smile-zone.com if it keeps happening.",
+          )
+        }
         const json = await res.json()
-        if (!res.ok) throw new Error(json.error || 'Failed to load questions.')
         dispatch({ type: 'SET_QUESTIONS', questions: json.questions })
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Unable to load assessment. Please try again.'
+        const msg =
+          err instanceof Error
+            ? err.message
+            : "We couldn't load your assessment right now. Please refresh and try again, or email info@the-smile-zone.com if it keeps happening."
         setError(msg)
         dispatch({ type: 'SET_PHASE', phase: 'AGE_SELECTED' })
       }
@@ -243,8 +257,17 @@ export default function Assessment() {
           answers:      state.answers,
         }),
       })
+      if (!res.ok) {
+        if (res.status === 429) {
+          throw new Error(
+            'Too many submissions came from your network in the last few minutes. Please wait a couple minutes and try again. Still stuck? Email info@the-smile-zone.com.',
+          )
+        }
+        throw new Error(
+          'Something went wrong generating your report. Please try again. If it keeps happening, email info@the-smile-zone.com so we can get it to you.',
+        )
+      }
       const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Submission failed.')
 
       try { localStorage.removeItem(LS_PROGRESS_KEY) } catch {}
       try { localStorage.setItem(LS_EMAIL_KEY, state.email.toLowerCase()) } catch {}

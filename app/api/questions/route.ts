@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRateLimit } from '@/lib/rate-limiter'
 import { getQuestions } from '@/lib/question-handler'
 import type { AgeGroup } from '@/types'
 
@@ -18,17 +17,12 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const allowed = await checkRateLimit(request, 'get_questions')
-  if (!allowed) {
-    return NextResponse.json(
-      { error: 'Rate limit exceeded. Please try again later.' },
-      { status: 429 },
-    )
-  }
-
   try {
     const questions = await getQuestions(ageGroup)
-    return NextResponse.json({ questions })
+    return NextResponse.json(
+      { questions },
+      { headers: { 'Cache-Control': 'private, max-age=300, must-revalidate' } },
+    )
   } catch (err) {
     console.error('SMILEZONE [questions route] Error:', err)
     return NextResponse.json(
