@@ -1,10 +1,9 @@
 name: Supabase Keep-Alive
 
 # Free-tier Supabase projects pause after 7 days of inactivity.
-# This workflow writes a heartbeat row twice a week (Mon + Thu) so the
-# project registers a fresh database write — read-only REST queries can
-# be served from PostgREST caches and may not count as "activity" for
-# Supabase's pause heuristic.
+# This workflow runs a direct Postgres write twice a week (Mon + Thu).
+# psql talks straight to the database (bypasses PostgREST + RLS), so it
+# is unambiguous "database activity" for Supabase's pause heuristic.
 #
 # Writes go into the existing rate_limits table with action='keepalive'.
 # Rows are cleaned up periodically by scripts/clear-rate-limits.js.
@@ -18,29 +17,14 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Insert heartbeat row into Supabase
+      - name: Insert heartbeat row via psql
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_KEY" ]; then
-            echo "Missing SUPABASE_URL or SUPABASE_SERVICE_KEY secret"
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "Missing SUPABASE_DB_URL secret"
             exit 1
           fi
-          body_file=$(mktemp)
-          status=$(curl -s -o "$body_file" -w "%{http_code}" \
-            -X POST \
-            -H "apikey: $SUPABASE_SERVICE_KEY" \
-            -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
-            -H "Content-Type: application/json" \
-            -H "Prefer: return=minimal" \
-            -d '{"ip_hash":"github-actions-keepalive","action":"keepalive"}' \
-            "$SUPABASE_URL/rest/v1/rate_limits")
-          if [ "$status" != "201" ]; then
-            echo "Supabase heartbeat insert failed (HTTP $status)"
-            echo "Response body:"
-            cat "$body_file"
-            echo ""
-            exit 1
-          fi
-          echo "Supabase heartbeat insert OK (HTTP $status)"
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -c \
+            "INSERT INTO rate_limits (ip_hash, action) VALUES ('github-actions-keepalive', 'keepalive');"
+          echo "Supabase heartbeat insert OK"
