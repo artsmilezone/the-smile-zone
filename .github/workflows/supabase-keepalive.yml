@@ -1,9 +1,13 @@
 name: Supabase Keep-Alive
 
 # Free-tier Supabase projects pause after 7 days of inactivity.
-# This workflow pings the database twice a week (Mon + Thu) to keep it active.
-# Twice-weekly cadence gives a 3-4 day max gap, well under the 7-day pause threshold,
-# with buffer for GitHub Actions scheduled-workflow delays during peak load.
+# This workflow writes a heartbeat row twice a week (Mon + Thu) so the
+# project registers a fresh database write — read-only REST queries can
+# be served from PostgREST caches and may not count as "activity" for
+# Supabase's pause heuristic.
+#
+# Writes go into the existing rate_limits table with action='keepalive'.
+# Rows are cleaned up periodically by scripts/clear-rate-limits.js.
 
 on:
   schedule:
@@ -14,7 +18,7 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase REST API
+      - name: Insert heartbeat row into Supabase
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
@@ -24,11 +28,15 @@ jobs:
             exit 1
           fi
           status=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST \
             -H "apikey: $SUPABASE_SERVICE_KEY" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
-            "$SUPABASE_URL/rest/v1/questions?select=id&limit=1")
-          if [ "$status" != "200" ] && [ "$status" != "206" ]; then
-            echo "Supabase ping failed (HTTP $status)"
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d '{"ip_hash":"github-actions-keepalive","action":"keepalive"}' \
+            "$SUPABASE_URL/rest/v1/rate_limits")
+          if [ "$status" != "201" ]; then
+            echo "Supabase heartbeat insert failed (HTTP $status)"
             exit 1
           fi
-          echo "Supabase ping OK (HTTP $status)"
+          echo "Supabase heartbeat insert OK (HTTP $status)"
