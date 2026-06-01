@@ -27,7 +27,8 @@ jobs:
             echo "Missing SUPABASE_URL or SUPABASE_SERVICE_KEY secret"
             exit 1
           fi
-          status=$(curl -s -o /dev/null -w "%{http_code}" \
+          body_file=$(mktemp)
+          status=$(curl -s -o "$body_file" -w "%{http_code}" \
             -X POST \
             -H "apikey: $SUPABASE_SERVICE_KEY" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
@@ -37,6 +38,9 @@ jobs:
             "$SUPABASE_URL/rest/v1/rate_limits")
           if [ "$status" != "201" ]; then
             echo "Supabase heartbeat insert failed (HTTP $status)"
+            echo "Response body:"
+            cat "$body_file"
+            echo ""
             exit 1
           fi
           echo "Supabase heartbeat insert OK (HTTP $status)"
